@@ -61,6 +61,12 @@ workflows:
     - CODEPUSH_DEPLOYMENT: Staging
     steps:
     - git-clone@8: {}
+    - restore-npm-cache@2: {}
+    - npm@1:
+        title: npm ci
+        inputs:
+        - command: ci
+    - save-npm-cache@1: {}
     - codepush-publish@1:
         title: Publish iOS update
         inputs:
@@ -69,6 +75,7 @@ workflows:
         - deployment: $CODEPUSH_DEPLOYMENT
         - app_version: $APP_TARGET_VERSIONS
         - api_token: $BITRISE_API_TOKEN
+        - skip_dependency_install: "true"
         - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
     - codepush-publish@1:
         title: Publish Android update
