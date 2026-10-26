@@ -24,7 +24,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import codePush, { LocalPackage } from '@bitrise/code-push-sdk';
 
 // Change this, then publish a CodePush update to see it delivered OTA.
-const APP_MESSAGE = 'Hello from the binary bundle 👋';
+const APP_MESSAGE = 'OTA update delivered via Bitrise CodePush 🚀';
 
 const STATUS_LABELS: Record<number, string> = {
   [codePush.SyncStatus.UP_TO_DATE]: 'Up to date',

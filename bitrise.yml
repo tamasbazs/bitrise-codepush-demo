@@ -61,6 +61,10 @@ workflows:
     - CODEPUSH_DEPLOYMENT: Staging
     steps:
     - git-clone@8: {}
+    - npm@1:
+        title: npm ci
+        inputs:
+        - command: ci
     - codepush-publish@1:
         title: Publish iOS update
         inputs:
@@ -69,6 +73,8 @@ workflows:
         - deployment: $CODEPUSH_DEPLOYMENT
         - app_version: $APP_TARGET_VERSIONS
         - api_token: $BITRISE_API_TOKEN
+        - skip_dependency_install: "true"
+        - hermes: "off"
         - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
     - codepush-publish@1:
         title: Publish Android update
@@ -79,6 +85,7 @@ workflows:
         - app_version: $APP_TARGET_VERSIONS
         - api_token: $BITRISE_API_TOKEN
         - skip_dependency_install: "true"
+        - hermes: "off"
         - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
     - deploy-to-bitrise-io@2: {}
     triggers:
@@ -117,6 +124,28 @@ workflows:
         - rollout_percentage: $CODEPUSH_ROLLOUT_PERCENTAGE
         - mandatory: $CODEPUSH_MANDATORY
         - skip_dependency_install: "true"
+    - deploy-to-bitrise-io@2: {}
+
+  # ---------------------------------------------------------------------------
+  # Build a release APK for initial device installation
+  # CodePush OTA updates only apply to release builds, not debug.
+  # ---------------------------------------------------------------------------
+  build_android:
+    summary: Build a release APK to sideload onto a device before demoing CodePush OTA updates.
+    steps:
+    - git-clone@8: {}
+    - npm@1:
+        title: npm ci
+        inputs:
+        - command: ci
+    - install-missing-android-tools@3:
+        inputs:
+        - gradlew_path: ./android/gradlew
+    - android-build@1:
+        inputs:
+        - project_location: ./android
+        - module: app
+        - variant: Release
     - deploy-to-bitrise-io@2: {}
 
   # ---------------------------------------------------------------------------
