@@ -74,6 +74,7 @@ workflows:
         - app_version: $APP_TARGET_VERSIONS
         - api_token: $BITRISE_API_TOKEN
         - skip_dependency_install: "true"
+        - hermes: "off"
         - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
     - codepush-publish@1:
         title: Publish Android update
@@ -84,6 +85,7 @@ workflows:
         - app_version: $APP_TARGET_VERSIONS
         - api_token: $BITRISE_API_TOKEN
         - skip_dependency_install: "true"
+        - hermes: "off"
         - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
     - deploy-to-bitrise-io@2: {}
     triggers:
