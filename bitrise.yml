@@ -1,0 +1,156 @@
+format_version: "13"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: react-native
+
+meta:
+  bitrise.io:
+    # Any current macOS/Xcode stack works; pick the newest one in Workflow Editor > Stacks.
+    stack: osx-xcode-26.0.x
+    machine_type_id: g2.mac.medium
+
+app:
+  envs:
+  # Release Management connected app IDs (Release Management > app > Configuration)
+  - IOS_CONNECTED_APP_ID: REPLACE_WITH_IOS_CONNECTED_APP_ID
+  - ANDROID_CONNECTED_APP_ID: REPLACE_WITH_ANDROID_CONNECTED_APP_ID
+  # Name shared by the iOS and Android deployments (e.g. Staging / Production)
+  - CODEPUSH_DEPLOYMENT: Staging
+  # Binary versions that may receive the update: exact ("1.0.0") or range (">=1.0.0")
+  - APP_TARGET_VERSIONS: 1.0.0
+  # BITRISE_API_TOKEN must be set as a Secret (personal or workspace API token)
+
+workflows:
+  # ---------------------------------------------------------------------------
+  # Fast JS checks on every push / PR
+  # ---------------------------------------------------------------------------
+  ci:
+    summary: Install, lint, type-check and test the JS bundle.
+    steps:
+    - git-clone@8: {}
+    - restore-npm-cache@2: {}
+    - npm@1:
+        title: npm ci
+        inputs:
+        - command: ci
+    - save-npm-cache@1: {}
+    - npm@1:
+        title: Lint
+        inputs:
+        - command: run lint
+    - script@1:
+        title: Type-check
+        inputs:
+        - content: npx tsc --noEmit
+    - npm@1:
+        title: Unit tests
+        inputs:
+        - command: test
+    triggers:
+      push:
+      - branch: main
+      pull_request:
+      - source_branch: "*"
+
+  # ---------------------------------------------------------------------------
+  # OTA update to Staging when a PR gets the `release-update` label
+  # ---------------------------------------------------------------------------
+  codepush_staging:
+    summary: Bundle the JS and publish iOS + Android CodePush updates to Staging.
+    status_report_name: "CodePush Staging for <project_title>"
+    envs:
+    - CODEPUSH_DEPLOYMENT: Staging
+    steps:
+    - git-clone@8: {}
+    - codepush-publish@1:
+        title: Publish iOS update
+        inputs:
+        - platform: ios
+        - app_id: $IOS_CONNECTED_APP_ID
+        - deployment: $CODEPUSH_DEPLOYMENT
+        - app_version: $APP_TARGET_VERSIONS
+        - api_token: $BITRISE_API_TOKEN
+        - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
+    - codepush-publish@1:
+        title: Publish Android update
+        inputs:
+        - platform: android
+        - app_id: $ANDROID_CONNECTED_APP_ID
+        - deployment: $CODEPUSH_DEPLOYMENT
+        - app_version: $APP_TARGET_VERSIONS
+        - api_token: $BITRISE_API_TOKEN
+        - skip_dependency_install: "true"
+        - description: "$GIT_CLONE_COMMIT_MESSAGE_SUBJECT (build $BITRISE_BUILD_NUMBER)"
+    - deploy-to-bitrise-io@2: {}
+    triggers:
+      pull_request:
+      - label: release-update
+
+  # ---------------------------------------------------------------------------
+  # OTA update to Production — run manually, with a staged rollout
+  # ---------------------------------------------------------------------------
+  codepush_production:
+    summary: Publish iOS + Android CodePush updates to Production (manual, staged rollout).
+    envs:
+    - CODEPUSH_DEPLOYMENT: Production
+    - CODEPUSH_ROLLOUT_PERCENTAGE: "25"
+    - CODEPUSH_MANDATORY: "false"
+    steps:
+    - git-clone@8: {}
+    - codepush-publish@1:
+        title: Publish iOS update
+        inputs:
+        - platform: ios
+        - app_id: $IOS_CONNECTED_APP_ID
+        - deployment: $CODEPUSH_DEPLOYMENT
+        - app_version: $APP_TARGET_VERSIONS
+        - api_token: $BITRISE_API_TOKEN
+        - rollout_percentage: $CODEPUSH_ROLLOUT_PERCENTAGE
+        - mandatory: $CODEPUSH_MANDATORY
+    - codepush-publish@1:
+        title: Publish Android update
+        inputs:
+        - platform: android
+        - app_id: $ANDROID_CONNECTED_APP_ID
+        - deployment: $CODEPUSH_DEPLOYMENT
+        - app_version: $APP_TARGET_VERSIONS
+        - api_token: $BITRISE_API_TOKEN
+        - rollout_percentage: $CODEPUSH_ROLLOUT_PERCENTAGE
+        - mandatory: $CODEPUSH_MANDATORY
+        - skip_dependency_install: "true"
+    - deploy-to-bitrise-io@2: {}
+
+  # ---------------------------------------------------------------------------
+  # Same as codepush_staging, but via the CodePush CLI (useful as a base for
+  # promote / rollback automation)
+  # ---------------------------------------------------------------------------
+  codepush_staging_cli:
+    summary: Publish Staging updates with the Bitrise CodePush CLI plugin.
+    envs:
+    - CODEPUSH_DEPLOYMENT: Staging
+    steps:
+    - git-clone@8: {}
+    - script@1:
+        title: Install the CodePush CLI
+        inputs:
+        - content: bitrise plugin install https://github.com/bitrise-io/bitrise-plugins-codepush-cli.git
+    - restore-npm-cache@2: {}
+    - npm@1:
+        inputs:
+        - command: ci
+    - save-npm-cache@1: {}
+    - script@1:
+        title: Push iOS update
+        inputs:
+        - content: |-
+            bitrise :codepush push --bundle --platform ios \
+              --app-id "$IOS_CONNECTED_APP_ID" \
+              --deployment "$CODEPUSH_DEPLOYMENT" \
+              --app-version "$APP_TARGET_VERSIONS"
+    - script@1:
+        title: Push Android update
+        inputs:
+        - content: |-
+            bitrise :codepush push --bundle --platform android \
+              --app-id "$ANDROID_CONNECTED_APP_ID" \
+              --deployment "$CODEPUSH_DEPLOYMENT" \
+              --app-version "$APP_TARGET_VERSIONS"
