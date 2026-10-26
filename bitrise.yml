@@ -12,7 +12,7 @@ app:
   envs:
   # Release Management connected app IDs (Release Management > app > Configuration)
   - IOS_CONNECTED_APP_ID: REPLACE_WITH_IOS_CONNECTED_APP_ID
-  - ANDROID_CONNECTED_APP_ID: REPLACE_WITH_ANDROID_CONNECTED_APP_ID
+  - ANDROID_CONNECTED_APP_ID: 35b56e64-48e9-4a6f-b6bd-139c05555b6f
   # Name shared by the iOS and Android deployments (e.g. Staging / Production)
   - CODEPUSH_DEPLOYMENT: Staging
   # Binary versions that may receive the update: exact ("1.0.0") or range (">=1.0.0")
